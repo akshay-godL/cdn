@@ -22,17 +22,15 @@ export default async function handler(req, res) {
       });
 
       busboy.on("finish", async () => {
-        if (!buffer) return res.status(400).json({ error: "No file" });
+        if (!buffer) return res.status(400).json({ error: "No file uploaded" });
 
         const form = new FormData();
         form.append("reqtype", "fileupload");
         form.append("fileToUpload", buffer, { filename });
 
-        const r = await axios.post(
-          "https://catbox.moe/user/api.php",
-          form,
-          { headers: form.getHeaders() }
-        );
+        const r = await axios.post("https://catbox.moe/user/api.php", form, {
+          headers: form.getHeaders(),
+        });
 
         const catboxUrl = r.data.trim();
         const name = catboxUrl.split("/").pop();
@@ -49,44 +47,41 @@ export default async function handler(req, res) {
 
       req.pipe(busboy);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: "Upload failed" });
     }
-
     return;
   }
 
   // ---- GET: Stream file ----
   if (req.method === "GET") {
     try {
-      // Use req.query.name populated by Vercel rewrite
       const name = req.query.name;
       if (!name) return res.status(400).send("File missing");
 
       const catboxUrl = `https://files.catbox.moe/${name}`;
 
-      const r = await fetch(catboxUrl, {
+      // Axios streaming
+      const r = await axios.get(catboxUrl, {
+        responseType: "stream",
         headers: {
           range: req.headers.range || "",
         },
       });
 
-      if (!r.ok && r.status !== 206) return res.status(404).send("Not found");
-
-      res.status(r.status);
-
+      // Copy headers
       ["content-type", "content-length", "content-range"].forEach((h) => {
-        const v = r.headers.get(h);
+        const v = r.headers[h] || r.headers[h.toLowerCase()];
         if (v) res.setHeader(h, v);
       });
 
       res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
 
-      r.body.pipe(res);
+      r.data.pipe(res);
     } catch (err) {
       console.error(err);
       res.status(500).send("Streaming error");
     }
-
     return;
   }
 
