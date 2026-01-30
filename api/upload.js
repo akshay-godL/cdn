@@ -1,10 +1,9 @@
 import axios from "axios";
 import FormData from "form-data";
+import Busboy from "busboy";
 
 export const config = {
-  api: {
-    bodyParser: false
-  }
+  api: { bodyParser: false },
 };
 
 export default async function handler(req, res) {
@@ -12,45 +11,46 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POST only" });
   }
 
-  try {
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
+  const busboy = Busboy({ headers: req.headers });
+  let buffer;
+  let filename = "upload";
 
-    const buffer = Buffer.concat(chunks);
+  busboy.on("file", (_, file, info) => {
+    filename = info.filename || filename;
+    const chunks = [];
+    file.on("data", d => chunks.push(d));
+    file.on("end", () => {
+      buffer = Buffer.concat(chunks);
+    });
+  });
+
+  busboy.on("finish", async () => {
+    if (!buffer) {
+      return res.status(400).json({ error: "No file" });
+    }
 
     const form = new FormData();
     form.append("reqtype", "fileupload");
-    form.append("fileToUpload", buffer, {
-      filename: "upload",
-    });
+    form.append("fileToUpload", buffer, { filename });
 
-    const response = await axios.post(
+    const r = await axios.post(
       "https://catbox.moe/user/api.php",
       form,
       { headers: form.getHeaders() }
     );
 
-    const catboxUrl = response.data.trim();
-    const fileName = catboxUrl.split("/").pop();
+    const catboxUrl = r.data.trim();
+    const name = catboxUrl.split("/").pop();
 
-    // 🔥 AUTO DETECT DOMAIN
-    const protocol =
-      req.headers["x-forwarded-proto"] || "https";
-    const domain = `${protocol}://${req.headers.host}`;
-
-    const cdnUrl = `${domain}/${fileName}`;
+    const proto = req.headers["x-forwarded-proto"] || "https";
+    const domain = `${proto}://${req.headers.host}`;
 
     res.json({
       success: true,
-      cdn_url: cdnUrl,
-      origin: catboxUrl
+      url: `${domain}/file/${name}`,
+      origin: catboxUrl,
     });
-  } catch (err) {
-    res.status(500).json({
-      success: false,
-      error: "Upload failed"
-    });
-  }
+  });
+
+  req.pipe(busboy);
 }
