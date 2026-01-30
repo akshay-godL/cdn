@@ -47,7 +47,7 @@ export default async function handler(req, res) {
 
     res.json({
       success: true,
-      url: `${domain}/file/${name}`,
+      cdn_url: `${domain}/file/${name}`,
       origin: catboxUrl,
     });
   });
