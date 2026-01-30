@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>My CDN Uploader</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .box {
+      background: #1c1c1c;
+      padding: 25px;
+      border-radius: 10px;
+      width: 320px;
+      text-align: center;
+    }
+    input[type="file"] {
+      width: 100%;
+      margin-bottom: 15px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #4caf50;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    button:disabled {
+      background: #555;
+    }
+    .result {
+      margin-top: 15px;
+      word-break: break-all;
+    }
+    a {
+      color: #4caf50;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="box">
+    <h2>Upload to CDN</h2>
+
+    <form id="uploadForm">
+      <input type="file" name="file" required />
+      <button type="submit">Upload</button>
+    </form>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("uploadForm");
+    const result = document.getElementById("result");
+    const button = form.querySelector("button");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      button.disabled = true;
+      result.textContent = "Uploading...";
+
+      const formData = new FormData(form);
+
+      try {
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          result.textContent = "Upload failed";
+        } else {
+          result.innerHTML = `
+            ✅ Uploaded<br><br>
+            <a href="${data.cdn_url}" target="_blank">
+              ${data.cdn_url}
+            </a>
+          `;
+        }
+      } catch (err) {
+        result.textContent = "Error uploading file";
+      }
+
+      button.disabled = false;
+    });
+  </script>
+
+</body>
+</html>
