@@ -2,11 +2,7 @@ import axios from "axios";
 import FormData from "form-data";
 import Busboy from "busboy";
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const config = { api: { bodyParser: false } };
 
 export default async function handler(req, res) {
   // ---- POST: Upload file ----
@@ -62,10 +58,10 @@ export default async function handler(req, res) {
   // ---- GET: Stream file ----
   if (req.method === "GET") {
     try {
-      const urlParts = req.url.split("/file/");
-      if (urlParts.length < 2) return res.status(400).send("File missing");
+      // Use req.query.name populated by Vercel rewrite
+      const name = req.query.name;
+      if (!name) return res.status(400).send("File missing");
 
-      const name = urlParts[1];
       const catboxUrl = `https://files.catbox.moe/${name}`;
 
       const r = await fetch(catboxUrl, {
@@ -87,6 +83,7 @@ export default async function handler(req, res) {
 
       r.body.pipe(res);
     } catch (err) {
+      console.error(err);
       res.status(500).send("Streaming error");
     }
 
